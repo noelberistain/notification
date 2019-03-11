@@ -1,0 +1,89 @@
+const express = require("express");
+const router = express.Router();
+const Contact = require("../models/Contacts.model");
+const checkToken = require("../checkToken");
+const completeUser = require ("../connection/completeUser")
+const axios = require("axios");
+
+router.post("/adduser", (req, res) => {
+    const { _id, name, email } = req.body;
+    console.log(req.body);
+    Contact.findOne({
+        email: email
+    })
+        .then(user => {
+            if (user) {
+                console.log("existent user at notification service database");
+                return res.status(400).json({
+                    email: "Email already exist"
+                });
+            } else {
+                console.log("addding user at notification service database");
+                const newUser = new Contact({
+                    _id: _id,
+                    name: name,
+                    email: email
+                });
+                newUser
+                    .save()
+                    .then(newUser => {
+                        console.log(
+                            "new user SAVED at notification nservice database called ==== CONTACTS",
+                            newUser
+                        );
+                        res.json(newUser);
+                    })
+                    .catch(e => console.log(e));
+            }
+        })
+        .catch(e => console.log(e));
+});
+
+router.get("/allUsers", (req, res) => {
+    const contacts = [];
+    Contact.find()
+        .then(users => {
+            users.map(contact => {
+                contacts.push(contact);
+            });
+            console.log("contacts", contacts);
+            res.json(contacts);
+        })
+        .catch(e => console.log(e));
+});
+
+router.get("/myfriends", checkToken, completeUser, (req, res) => {
+    const {contacts} = req.body;
+    res.json(contacts)
+    // function getAll(data) {
+    //     return axios.get("http://localhost:5000/api/auth/friendsInfo", {
+    //         params: data
+    //     });
+    // }
+    // async function getting(){
+    //     let full = await getAll(contacts)
+    //     console.log(" - - - - - I D K - - - - -",full)
+        // res.json(full.data)
+    // }
+    // getting()
+});
+
+router.post("/addContact", (req, res) => {
+    const { _id, userId } = req.body;
+
+    Contact.findOneAndUpdate(
+        { _id: userId },
+        { $push: { contacts: { contactID: _id } } },
+        { new: true }
+    ).exec((err, doc) => {
+        if (err)
+            console.log(`there was something wrong updating the document
+            ${err}`);
+        else {
+            console.log("document\n", doc);
+        }
+        res.json(doc);
+    });
+});
+
+module.exports = router;

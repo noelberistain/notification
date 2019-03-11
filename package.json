@@ -1,0 +1,23 @@
+{
+    "devDependencies": {
+        "axios": "^0.18.0",
+        "express": "^4.16.4",
+        "http-proxy": "^1.17.0",
+        "mongoose": "^5.4.13",
+        "node-fetch": "^2.3.0",
+        "sfcookies": "^1.0.2"
+    },
+    "name": "notification",
+    "version": "1.0.0",
+    "main": "serverNotif.js",
+    "dependencies": {
+        "jwt-decode": "^2.2.0"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": ""
+}
