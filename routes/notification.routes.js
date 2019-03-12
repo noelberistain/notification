@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Contact = require("../models/Contacts.model");
 const checkToken = require("../checkToken");
-const completeUser = require ("../connection/completeUser")
+const completeUser = require("../connection/completeUser");
 const axios = require("axios");
 
 router.post("/adduser", (req, res) => {
@@ -52,38 +52,42 @@ router.get("/allUsers", (req, res) => {
         .catch(e => console.log(e));
 });
 
-router.get("/myfriends", checkToken, completeUser, (req, res) => {
-    const {contacts} = req.body;
-    res.json(contacts)
-    // function getAll(data) {
-    //     return axios.get("http://localhost:5000/api/auth/friendsInfo", {
-    //         params: data
-    //     });
-    // }
-    // async function getting(){
-    //     let full = await getAll(contacts)
-    //     console.log(" - - - - - I D K - - - - -",full)
-        // res.json(full.data)
-    // }
-    // getting()
+router.get("/myfriends", checkToken, completeUser, async (req, res) => {
+    const { contacts } = req.body;
+    // console.log(contacts);
+    const ids = contacts.map(value => value.contactID); //just ids array
+    const statId = contacts.map(value => value = {id:value.contactID,status:value.status}) // array of ids and status
+    const getAll = () =>
+        axios.post("http://localhost:5000/api/auth/friendsInfo", ids);
+    const { data } = (user = await getAll());
+    data.forEach(element => {
+        statId.map(id => {
+            if (element._id == id.id) {
+                element.status = id.status;
+            }
+        });
+    });
+
+    res.json(data);
 });
 
 router.post("/addContact", (req, res) => {
     const { _id, userId } = req.body;
-
     Contact.findOneAndUpdate(
         { _id: userId },
         { $push: { contacts: { contactID: _id } } },
         { new: true }
-    ).exec((err, doc) => {
+    )
+    .exec((err, doc) => {
         if (err)
             console.log(`there was something wrong updating the document
             ${err}`);
         else {
-            console.log("document\n", doc);
+            console.log("- - - - - - - - - - - - - - - - - - - - - - -- - - document\n", doc);
+            res.json(doc);
         }
-        res.json(doc);
     });
+
 });
 
 module.exports = router;
