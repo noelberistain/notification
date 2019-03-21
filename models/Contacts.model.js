@@ -5,7 +5,7 @@ const objectID = Schema.Types.ObjectId;
 const Friends = new Schema({
     contactID: { type: objectID, ref: 'Contacts' },
     status: {
-            type: Boolean,
+            type: String,
             default: 'false'
     },
     date: {

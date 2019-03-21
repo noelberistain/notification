@@ -3,7 +3,6 @@ const router = express.Router();
 const Contact = require("../models/Contacts.model");
 const checkToken = require("../checkToken");
 const completeUser = require("../connection/completeUser");
-// const sockets = require("../SocketManager")
 const axios = require("axios");
 const io = require("../notification").io;
 
@@ -77,7 +76,7 @@ router.get("/myfriends", checkToken, completeUser, async (req, res) => {
 router.post("/addContact", (req, res) => {
     console.log(" ------ Info from authentication at CLIENT - - - - /n",req.body);
     const { _id, userId } = req.body;
-	console.log('TCL: _id, userId', _id, userId)
+	// console.log('TCL: _id, userId', _id, userId)
     Contact.findOneAndUpdate(
         { _id: userId },
         { $push: { contacts: { contactID: _id } } },
@@ -86,26 +85,23 @@ router.post("/addContact", (req, res) => {
         if (err) {
             console.log(`there was something wrong updating the document${err}`);
         } else {
-            console.log("- - - - - - - - - - - - - - - - - - - - - - -- - - document\n",doc);
+            // console.log('TLC: - - - - - - - - - - - - - - - - - - - - - - -- - - document\n',doc);
             res.json(doc);
             Contact.findOneAndUpdate(
                 { _id },
-                { $push: { contacts: { contactID: userId } } },
+                { $push: { contacts: { contactID: userId, status: 'pending' } } },
                 { new: true }
             ).exec((err, doc) => {
                 if (err)
                     onsole.log(`there was something wrong updating the document ${err}`);
                 else {
-                    console.log(
-                        "- - - - - - - - - - - - - - - - - - - - - - -- - - document\n",
-                        doc
-                    );
+                    // console.log("- - - - - - - - - - - - - - - - - - - - - - -- - - document\n",doc);
                 }
             });
         }
     });
-    io.to(_id).emit("notification",req.body);
-    // res.json(`...`)
+    
+    io.to(_id).emit("notification",userId);
 });
 
 module.exports = router;
