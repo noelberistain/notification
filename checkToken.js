@@ -5,8 +5,8 @@ module.exports = (req, res, next) => {
     if(typeof header !== 'undefined') {
         const n = header.split(';')
         req.body = n.find(item => item.includes('jwToken'))
-        req.body = jwt_decode(req.body)
-        // WHERE req.body =  id of active user
+        user = jwt_decode(req.body)
+        // WHERE user =  id of active user
         next();
     } 
     else {

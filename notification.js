@@ -29,12 +29,14 @@ mongoose.connect(config.DB, { useNewUrlParser: true }).then(
     }
 );
 
-app.use(bodyParser.urlencoded({ extended: false }));
+// app.use(bodyParser.urlencoded({ extended: false })); ORIGINAL USAGE  extended:false
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.get("/", (res, next) => {
     res.send(`Welcome to Notification service`);
 });
+
 io.use(validateSocket)
 
 io.on("connection", socketManager)

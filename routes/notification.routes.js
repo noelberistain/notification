@@ -3,6 +3,7 @@ const router = express.Router();
 const Contact = require("../models/Contacts.model");
 const checkToken = require("../checkToken");
 const completeUser = require("../connection/completeUser");
+const jwt_decode = require("jwt-decode")
 const axios = require("axios");
 const io = require("../notification").io;
 
@@ -54,7 +55,7 @@ router.get("/allUsers", (req, res) => {
 });
 
 router.get("/myfriends", checkToken, completeUser, async (req, res) => {
-    const { contacts } = req.body;
+    const { contacts } = withContacts;
     const ids = contacts.map(value => value.contactID); //just ids array
     const statId = contacts.map(
         value => (value = { id: value.contactID, status: value.status })
@@ -76,7 +77,6 @@ router.get("/myfriends", checkToken, completeUser, async (req, res) => {
 router.post("/addContact", (req, res) => {
     console.log(" ------ Info from authentication at CLIENT - - - - /n",req.body);
     const { _id, userId } = req.body;
-	// console.log('TCL: _id, userId', _id, userId)
     Contact.findOneAndUpdate(
         { _id: userId },
         { $push: { contacts: { contactID: _id } } },
@@ -85,7 +85,7 @@ router.post("/addContact", (req, res) => {
         if (err) {
             console.log(`there was something wrong updating the document${err}`);
         } else {
-            // console.log('TLC: - - - - - - - - - - - - - - - - - - - - - - -- - - document\n',doc);
+            console.log(' me with false status And a id in my contacts array- - - - - - - - - - -\n',doc);
             res.json(doc);
             Contact.findOneAndUpdate(
                 { _id },
@@ -95,7 +95,7 @@ router.post("/addContact", (req, res) => {
                 if (err)
                     onsole.log(`there was something wrong updating the document ${err}`);
                 else {
-                    // console.log("- - - - - - - - - - - - - - - - - - - - - - -- - - document\n",doc);
+                    console.log("The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",doc);
                 }
             });
         }
@@ -103,5 +103,69 @@ router.post("/addContact", (req, res) => {
     
     io.to(_id).emit("notification",userId);
 });
+
+router.post("/responseFriendship", (req,res)=>{
+    const header = req.headers.cookie;
+    if(typeof header !== 'undefined') {
+        let n = header.split(';')
+        let token = n.find(item => item.includes('jwToken'))
+        let user = jwt_decode(token)
+        const {value, requestingID} = req.body
+        console.log(typeof value, value)
+        if (value !== 'undefined') {
+        try {
+                Contact.findOneAndUpdate(
+                    {
+                        _id: user.id,
+                        'contacts.contactID': requestingID
+                    },
+                    { $set: { 'contacts.$.status': value } },
+                    { new: true }
+                )
+                    .exec((err, doc) => {
+                        if (err) {
+                            console.log("error", err);
+                        }
+                        else {
+                            try {
+                                Contact.findOneAndUpdate(
+                                    {
+                                        _id: requestingID,
+                                        'contacts.contactID': user.id
+                                    },
+                                    { $set: { 'contacts.$.status': value } },
+                                    { new: true }
+                                ).exec((err, doc) => {
+                                    if (err) console.log(err)
+                                    else {
+                                        try {
+                                            console.log(doc)
+                                            console.log("status at both sides has change")
+                                            res.json('DONE')
+                                        }
+                                        catch{ 
+                                            console.log("THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",err)
+                                        }
+                                    }
+
+                                })
+                            }
+                                catch{
+                        console.log('SOME ERROR')
+                    }
+                }
+            });
+        }
+        catch{
+
+        }
+    io.to(user.id).to(requestingID).emit('notification')
+    }
+    else {
+        // If header is undefined return Forbidden (403)
+        res.send("something is wrong").status(403)
+    }
+}
+})
 
 module.exports = router;
