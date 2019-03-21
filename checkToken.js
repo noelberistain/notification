@@ -1,13 +1,16 @@
-const jwt_decode = require ("jwt-decode");
+const jwt_decode = require("jwt-decode");
 
 module.exports = (req, res, next) => {
     const header = req.headers.cookie;
     if(typeof header !== 'undefined') {
-        req.body = header.split('=')[1].replace(/^"(.+)"$/,'$1');
+        const n = header.split(';')
+        req.body = n.find(item => item.includes('jwToken'))
         req.body = jwt_decode(req.body)
+        // WHERE req.body =  id of active user
         next();
-    } else {
-        //If header is undefined return Forbidden (403)
-        res.sendStatus(403)
+    } 
+    else {
+        // If header is undefined return Forbidden (403)
+        res.send("something is wrong").status(403)
     }
 }

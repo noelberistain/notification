@@ -11,7 +11,9 @@
     "version": "1.0.0",
     "main": "serverNotif.js",
     "dependencies": {
-        "jwt-decode": "^2.2.0"
+        "jsonwebtoken": "^8.5.0",
+        "jwt-decode": "^2.2.0",
+        "socket.io": "^2.2.0"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
