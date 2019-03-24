@@ -19,20 +19,6 @@ const Contacts = new Schema({
         {
             type: Friends
         }
-    ],
-    conversations: [
-        {
-            userID: {
-                type: objectID
-            },
-            friendID: {
-                type: objectID
-            },
-            messages: {
-                type: String
-            }
-        }
-
     ]
 });
 

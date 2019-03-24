@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Contact = require("../models/Contacts.model");
+const Conversation = require("../models/Conversation.model");
 const checkToken = require("../checkToken");
 const completeUser = require("../connection/completeUser");
 const jwt_decode = require("jwt-decode")
@@ -8,10 +9,10 @@ const axios = require("axios");
 const io = require("../notification").io;
 
 router.post("/adduser", (req, res) => {
-    const { _id, name, email } = req.body;
+    const { _id, email } = req.body;
     console.log(req.body);
     Contact.findOne({
-        email: email
+        email
     })
         .then(user => {
             if (user) {
@@ -22,9 +23,7 @@ router.post("/adduser", (req, res) => {
             } else {
                 console.log("addding user at notification service database");
                 const newUser = new Contact({
-                    _id: _id,
-                    name: name,
-                    email: email
+                    _id: _id
                 });
                 newUser
                     .save()
@@ -41,40 +40,7 @@ router.post("/adduser", (req, res) => {
         .catch(e => console.log(e));
 });
 
-router.get("/allUsers", (req, res) => {
-    const contacts = [];
-    Contact.find()
-        .then(users => {
-            users.map(contact => {
-                contacts.push(contact);
-            });
-            console.log("contacts", contacts);
-            res.json(contacts);
-        })
-        .catch(e => console.log(e));
-});
-
-router.get("/myfriends", checkToken, completeUser, async (req, res) => {
-    const { contacts } = withContacts;
-    const ids = contacts.map(value => value.contactID); //just ids array
-    const statId = contacts.map(
-        value => (value = { id: value.contactID, status: value.status })
-    ); // array of ids and status
-    const getAll = () =>
-        axios.post("http://localhost:5000/api/auth/friendsInfo", ids);
-    const { data } = (user = await getAll());
-    data.forEach(element => {
-        statId.map(id => {
-            if (element._id == id.id) {
-                element.status = id.status;
-            }
-        });
-    });
-
-    res.json(data);
-});
-
-router.post("/addContact", (req, res) => {
+router.post("/addContact", async (req, res) => {
     console.log(" ------ Info from authentication at CLIENT - - - - /n",req.body);
     const { _id, userId } = req.body;
     Contact.findOneAndUpdate(
@@ -100,8 +66,7 @@ router.post("/addContact", (req, res) => {
             });
         }
     });
-    
-    io.to(_id).emit("notification",userId);
+    io.to(userId).to(_id).emit("notification",userId);
 });
 
 router.post("/responseFriendship", (req,res)=>{
@@ -110,14 +75,15 @@ router.post("/responseFriendship", (req,res)=>{
         let n = header.split(';')
         let token = n.find(item => item.includes('jwToken'))
         let user = jwt_decode(token)
-        const {value, requestingID} = req.body
-        console.log(typeof value, value)
+        const {id} = user;
+        const {value, contactID} = req.body
+        // value means the status - - - requestingID means the id of the element clicked at the dom
         if (value !== 'undefined') {
         try {
                 Contact.findOneAndUpdate(
                     {
-                        _id: user.id,
-                        'contacts.contactID': requestingID
+                        _id: id, // id means the id decoded from token for the ACTIVE USER
+                        'contacts.contactID': contactID
                     },
                     { $set: { 'contacts.$.status': value } },
                     { new: true }
@@ -127,11 +93,13 @@ router.post("/responseFriendship", (req,res)=>{
                             console.log("error", err);
                         }
                         else {
+                            //after i added the friend at my contacts list 
+                            //should now send ACTIVE USER to the contact list of the friend
                             try {
                                 Contact.findOneAndUpdate(
                                     {
-                                        _id: requestingID,
-                                        'contacts.contactID': user.id
+                                        _id: contactID,
+                                        'contacts.contactID': id
                                     },
                                     { $set: { 'contacts.$.status': value } },
                                     { new: true }
@@ -141,7 +109,9 @@ router.post("/responseFriendship", (req,res)=>{
                                         try {
                                             console.log(doc)
                                             console.log("status at both sides has change")
-                                            res.json('DONE')
+                                            const {id} = user;
+                                            createConversation(id,contactID);
+                                            res.json({id,contactID})
                                         }
                                         catch{ 
                                             console.log("THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",err)
@@ -159,7 +129,7 @@ router.post("/responseFriendship", (req,res)=>{
         catch{
 
         }
-    io.to(user.id).to(requestingID).emit('notification')
+    io.to(id).to(contactID).emit('notification')
     }
     else {
         // If header is undefined return Forbidden (403)
@@ -167,5 +137,54 @@ router.post("/responseFriendship", (req,res)=>{
     }
 }
 })
+
+router.get("/myfriends", checkToken, completeUser, async (req, res) => {
+    const { contacts } = withContacts;
+    const ids = contacts.map(value => value.contactID); //just ids array
+    const statId = contacts.map(
+        value => (value = { id: value.contactID, status: value.status })
+    ); // array of ids and status
+    const getAll = () =>
+        axios.post("http://localhost:5000/api/auth/friendsInfo", ids);
+    const { data } = (user = await getAll());
+    data.forEach(element => {
+        statId.map(id => {
+            if (element._id == id.id) {
+                element.status = id.status;
+            }
+        });
+    });
+
+    res.json(data);
+});
+
+const createConversation = (user,contact)=>{
+    Conversation.findById(user)
+    .then(activeUser => {
+        if(!activeUser ||activeUser === 'null') {
+            console.log("NOT EXISTENT",activeUser)
+            try{
+                const conv = new Conversation(
+                    { participants: [user, contact] },
+                    );
+                console.log("should be creating a new conversation with this info",conv)
+                Conversation.create(conv)
+                // .save()
+                .then(newUser => {
+                    console.log(
+                        "conversation created = == = = = =",
+                        newUser
+                    );
+                    // res.json(`DONE`);
+                })
+                .catch(e => console.log(e));
+            }
+            catch{
+                //if can't add the guy to the conversation
+                console.log("Something is wrong")
+            }
+        }
+    })
+}
 
 module.exports = router;
