@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Contact = require("../models/Contacts.model");
 const Conversation = require("../models/Conversation.model");
+const Message = require('../models/Message.model');
 const checkToken = require("../checkToken");
 const completeUser = require("../connection/completeUser");
 const jwt_decode = require("jwt-decode")
@@ -112,8 +113,8 @@ router.post("/responseFriendship", (req,res)=>{
                                                 Conversation.create(conv)
                                                 .then(newConv => {
                                                     console.log("NEW CONVERSATION CREATED-------",newConv);
+                                                    io.to(id).to(contactID).emit('create_conversation', newConv)
                                                     // res.json(newConv._id)
-                                                    io.to(id).to(contactID).emit('create_conversation', newConv._id)
                                                 })
                                                 .catch(e => console.log(e));
                                             }
@@ -146,16 +147,22 @@ router.post("/responseFriendship", (req,res)=>{
 
 router.get("/getConversation", checkToken, (req,res)=>{
     const {id} = user;
-    const {contact} = req.query;
     Conversation.find(
         { participants: id}
     )
-    .then(conversations => { 
-        const twoParticipants = conversations.filter(conversation => conversation.participants.length === 2);
-        const theOne = twoParticipants.filter(participant => participant.participants.includes(contact))
-        const{_id}= theOne[0];
-        res.json(_id) // conversation ID
+    .then(conversations => {
+        console.log(conversations)
+        res.json(conversations)
     })
+    //     { 
+    //     const twoParticipants = conversations.filter(conversation => conversation.participants.length === 2);
+    //     const theOne = twoParticipants.filter(participant => participant.participants.includes(contact))
+	// // console.log("TCL: theOne", theOne[0]._id)
+    //     const{_id}= theOne[0];
+    //     io.to(id).to(contact).emit('get_conversation_id')//,_id)
+    //     res.json(_id) // conversation ID
+    // })
+    .catch(e=> console.log("error  - searching for Conversation ID",e))
 })
 
 router.get("/myfriends", checkToken, completeUser, async (req, res) => {
@@ -177,5 +184,25 @@ router.get("/myfriends", checkToken, completeUser, async (req, res) => {
 
     res.json(data);
 });
+
+router.post("/createMessage", checkToken, (req, res) => {
+    const { id } = user;
+    const { convID, content, contact } = req.body;
+    const message = new Message(
+        {
+            conversationID: convID,
+            author: id,
+            content
+        }
+        )
+    message.save()
+        .then(newMessage => {
+            io.to(contact).emit('newMessage', newMessage)
+            res.json('DONE')
+        })
+        .catch(e => {
+            console.log("something went wrong, \n", e)
+        })
+})
 
 module.exports = router;
