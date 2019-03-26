@@ -40,7 +40,7 @@ router.post("/adduser", (req, res) => {
         .catch(e => console.log(e));
 });
 
-router.post("/addContact", async (req, res) => {
+router.post("/addContact", (req, res) => {
     console.log(" ------ Info from authentication at CLIENT - - - - /n",req.body);
     const { _id, userId } = req.body;
     Contact.findOneAndUpdate(
@@ -66,7 +66,7 @@ router.post("/addContact", async (req, res) => {
             });
         }
     });
-    io.to(userId).to(_id).emit("notification",userId);
+    io.to(_id).emit("notification",userId);
 });
 
 router.post("/responseFriendship", (req,res)=>{
@@ -78,7 +78,7 @@ router.post("/responseFriendship", (req,res)=>{
         const {id} = user;
         const {value, contactID} = req.body
         // value means the status - - - requestingID means the id of the element clicked at the dom
-        if (value !== 'undefined') {
+        if (value !== 'undefined' && value !== 'false') {
         try {
                 Contact.findOneAndUpdate(
                     {
@@ -93,8 +93,6 @@ router.post("/responseFriendship", (req,res)=>{
                             console.log("error", err);
                         }
                         else {
-                            //after i added the friend at my contacts list 
-                            //should now send ACTIVE USER to the contact list of the friend
                             try {
                                 Contact.findOneAndUpdate(
                                     {
@@ -107,35 +105,57 @@ router.post("/responseFriendship", (req,res)=>{
                                     if (err) console.log(err)
                                     else {
                                         try {
-                                            console.log(doc)
-                                            console.log("status at both sides has change")
                                             const {id} = user;
-                                            createConversation(id,contactID);
-                                            res.json({id,contactID})
-                                        }
-                                        catch{ 
-                                            console.log("THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",err)
-                                        }
+                                                const conv = new Conversation(
+                                                    { participants: [id, contactID] },
+                                                    );
+                                                Conversation.create(conv)
+                                                .then(newConv => {
+                                                    console.log("NEW CONVERSATION CREATED-------",newConv);
+                                                    // res.json(newConv._id)
+                                                    io.to(id).to(contactID).emit('create_conversation', newConv._id)
+                                                })
+                                                .catch(e => console.log(e));
+                                            }
+                                        catch{console.log("THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",err)}
                                     }
-
                                 })
                             }
-                                catch{
-                        console.log('SOME ERROR')
-                    }
+                                catch{console.log('SOME ERROR')}
                 }
             });
         }
-        catch{
-
-        }
-    io.to(id).to(contactID).emit('notification')
+        catch{}
+    // io.to(id).to(contactID).emit('notification',newConv)
     }
+        if(value === 'false'){
+            try{
+                // should be rejecting friendship request,
+                // removing the id for both of them
+            }
+            catch{
+                // if something goes wrong, should be doing something usefull
+            }
+        }
     else {
         // If header is undefined return Forbidden (403)
         res.send("something is wrong").status(403)
     }
 }
+})
+
+router.get("/getConversation", checkToken, (req,res)=>{
+    const {id} = user;
+    const {contact} = req.query;
+    Conversation.find(
+        { participants: id}
+    )
+    .then(conversations => { 
+        const twoParticipants = conversations.filter(conversation => conversation.participants.length === 2);
+        const theOne = twoParticipants.filter(participant => participant.participants.includes(contact))
+        const{_id}= theOne[0];
+        res.json(_id) // conversation ID
+    })
 })
 
 router.get("/myfriends", checkToken, completeUser, async (req, res) => {
@@ -157,34 +177,5 @@ router.get("/myfriends", checkToken, completeUser, async (req, res) => {
 
     res.json(data);
 });
-
-const createConversation = (user,contact)=>{
-    Conversation.findById(user)
-    .then(activeUser => {
-        if(!activeUser ||activeUser === 'null') {
-            console.log("NOT EXISTENT",activeUser)
-            try{
-                const conv = new Conversation(
-                    { participants: [user, contact] },
-                    );
-                console.log("should be creating a new conversation with this info",conv)
-                Conversation.create(conv)
-                // .save()
-                .then(newUser => {
-                    console.log(
-                        "conversation created = == = = = =",
-                        newUser
-                    );
-                    // res.json(`DONE`);
-                })
-                .catch(e => console.log(e));
-            }
-            catch{
-                //if can't add the guy to the conversation
-                console.log("Something is wrong")
-            }
-        }
-    })
-}
 
 module.exports = router;
