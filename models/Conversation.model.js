@@ -5,7 +5,7 @@ const Conversations = new Schema({
     participants:[ 
         {
                 type: String
-            }
+        }
         
     ]
 });
