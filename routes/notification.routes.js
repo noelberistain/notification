@@ -108,11 +108,8 @@ router.post("/responseFriendship", (req, res) => {
                                         try {
                                             const { id } = user;
                                             const them = [id, contactID];
-                                            const getAll = () =>
-                                                axios.post("http://localhost:5000/api/auth/friendsInfo", them);
-                                            const users = await getAll(); // retrieved users from auth
                                             const conv = new Conversation(
-                                                { participants: users.data },
+                                                { participants: them },
                                             );
                                             Conversation.create(conv)
                                                 .then(newConv => {
@@ -190,8 +187,8 @@ router.post("/createMessage", checkToken, (req, res) => {
     )
     message.save()
         .then(newMessage => {
-            return io.to(id).to(contact).emit('newMessage', (newMessage))
-            // res.json('DONE')
+            io.to(id).to(contact).emit('newMessage', (newMessage))
+            res.json(newMessage)
         })
         .catch(e => {
             console.log("something went wrong, \n", e)
@@ -201,17 +198,60 @@ router.post("/createMessage", checkToken, (req, res) => {
 router.get("/getMessages", checkToken, (req, res) => {
     // conversationID inside REQ.QUERY 
     const { id, contact } = req.query;
-	console.log("TCL: id,contact", id,contact)
     Message.find(
         { conversationID: id }
     )
         .then(conversations => {
-            return io.to(user.id).emit("getMessages", conversations)
-            // res.json(conversations)
+            io.to(user.id).emit("getMessages", conversations)
+            res.json(conversations)
         })
         .catch(e => {
             console.log(`there was an error retrieving all messages for conversationId= ${id}
         ${e}`)
+        })
+})
+
+router.post("/createGroup", checkToken, (req,res)=>{
+    const {name, list} = req.body;
+	// console.log("TCL: list", list)
+    
+    list.push(user.id)
+	// console.log("TCL: list WITH ME", list)
+    const group = new Conversation(
+        {   groupName:name,
+            participants: list },
+    );
+    Conversation.create(group)
+    .then(newGroup => {
+		// console.log("TCL: newGroup", newGroup)
+        list.forEach(user => io.to(user).emit('createGroup', newGroup))
+    })
+    res.end()
+})
+
+router.get("/getGroups", checkToken, (req,res)=>{
+    const{id}=user;
+    Conversation.find(
+        {
+            participants:id
+        },   
+    )
+        .then(all=>{
+            // console.log("***********ALL CONVERSATIONS***********",all)
+
+    // const groups = all.filter(conversation => conversation.participants.length > 2);
+    // const theOnes = groups.filter(conv => conv.groupName)
+    // console.log("---------GROUPS WITH ME---------\n",theOnes)
+    // theOnes.forEach(group => {
+    //     group.participants.map(participant=>{
+	// 		// console.log("TCL: participant", participant, group)
+            
+    //         io.to(participant).emit('loadGroups',group)
+    //     })
+    // })
+
+
+    res.json(all)
         })
 })
 

@@ -2,11 +2,12 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const Conversations = new Schema({
-    participants:[ 
+    groupName: String
+    ,
+    participants: [
         {
-                type: String
+            type: String
         }
-        
     ]
 });
 
