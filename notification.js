@@ -10,7 +10,7 @@ const router = require("./routes/notification.routes");
 const validateSocket = require('./token');
 // const token = require("./token");
 
-const socketManager = require("./socketManager")
+const socketManager = require("./SocketManager")
 
 var PORT = process.env.PORT || 5001;
 
@@ -32,7 +32,7 @@ mongoose.connect(config.DB, { useNewUrlParser: true }).then(
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.get("/", (res, next) => {
+app.get("/", (req, res, next) => {
     res.send(`Welcome to Notification service`);
 });
 
