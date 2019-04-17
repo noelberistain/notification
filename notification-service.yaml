@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification
+spec:
+  selector:
+    app: chatapp
+    tier: backend
+  ports:
+  - protocol: TCP
+    port: 5001
+    targetPort: http
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: notification
+spec:
+  selector:
+    matchLabels:
+      app: chatapp
+      tier: backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: chatapp
+        tier: backend
+    spec:
+      containers:
+      - name: notification
+        image: noelberistain/notification
+        ports:
+        - containerPort: 5001
+          name: http
