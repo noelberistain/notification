@@ -11,30 +11,24 @@ const io = require("../notification").io;
 
 router.post("/adduser", (req, res) => {
     const { _id, email } = req.body;
-    console.log("TCL: req.body", req.body);
+    // console.log("TCL: req.body", req.body);
     Contact.findOne({
         email
     })
         .then(user => {
             if (user) {
-                console.log("existent user at notification service database");
+                // console.log("existent user at notification service database");
                 return res.status(400).json({
                     email: "Email already exist"
                 });
             } else {
-                console.log("addding user at notification service database");
+                // console.log("addding user at notification service database");
                 const newUser = new Contact({
                     _id: _id
                 });
                 newUser
                     .save()
-                    .then(newUser => {
-                        console.log(
-                            "new user SAVED at notification nservice database called ==== CONTACTS",
-                            newUser
-                        );
-                        res.json(newUser);
-                    })
+                    .then(newUser => res.json(newUser))
                     .catch(e => console.log(e));
             }
         })
@@ -51,14 +45,9 @@ router.post("/addContact", (req, res) => {
         { new: true }
     ).exec((err, doc) => {
         if (err) {
-            console.log(
-                `there was something wrong updating the document${err}`
-            );
+            // console.log(`there was something wrong updating the document${err}`);
         } else {
-            console.log(
-                " me with false status And a id in my contacts array- - - - - - - - - - -\n",
-                doc
-            );
+            // console.log(" me with false status And a id in my contacts array- - - - - - - - - - -\n",doc);
             res.json(doc);
             Contact.findOneAndUpdate(
                 { _id },
@@ -70,14 +59,9 @@ router.post("/addContact", (req, res) => {
                 { new: true }
             ).exec((err, doc) => {
                 if (err)
-                    onsole.log(
-                        `there was something wrong updating the document ${err}`
-                    );
+                    console.log(`there was something wrong updating the document ${err}`);
                 else {
-                    console.log(
-                        "The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",
-                        doc
-                    );
+                    console.log("The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",doc);
                 }
             });
         }
@@ -92,7 +76,7 @@ router.post("/responseFriendship", (req, res) => {
         let token = n.find(item => item.includes("jwToken"));
         let user = jwt_decode(token);
         const { id } = user;
-        console.log("user ID ln-95:\n", id);
+        // console.log("user ID ln-95:\n", id);
         const { value, contactID } = req.body;
         // value means the status - - - requestingID means the id of the element clicked at the dom
         if (value !== "undefined" && value !== "false") {
@@ -170,7 +154,6 @@ router.post("/responseFriendship", (req, res) => {
 
 router.get("/getConversation", checkToken, (req, res) => {
     const { id } = user;
-
     Conversation.find({ participants: id })
         .then(conversations => res.json(conversations))
         .catch(e => console.log("error  - searching for Conversation ID", e));
@@ -208,8 +191,7 @@ router.post("/createMessage", checkToken, (req, res) => {
         .save()
         .then(newMessage => {
             contact.forEach(user=>{
-                io.to(id)
-                    .to(user)
+                io.to(user)
                     .emit("newMessage", newMessage);
             })
             res.end();
@@ -221,7 +203,7 @@ router.post("/createMessage", checkToken, (req, res) => {
 
 router.get("/getMessages", checkToken, (req, res) => {
     // conversationID inside REQ.QUERY
-    const { id, contact } = req.query;
+    const { id } = req.query;
     Message.find({ conversationID: id })
         .then(conversations => {
             return io.to(user.id).emit("getMessages", conversations);
@@ -240,22 +222,18 @@ router.get("/getGroupMessages", checkToken, (req, res) => {
     Message.find({ conversationID: groupID })
         .then(conversations => {
             const groupInfo = { activeConv: groupID, conversations };
-			console.log("TCL: groupInfo", groupInfo)
             io.to(user.id).emit("getGroupMessages", groupInfo);
-            res.end();
         })
         .catch(e => {
             console.log(`there was an error retrieving all messages for conversationId= ${groupID}
-        ${e}`);
+            ${e}`);
         });
+        res.end();
 });
 
 router.post("/createGroup", checkToken, (req, res) => {
     const { name, list } = req.body;
-    console.log("TCL:  name, list\n", name, list);
-
     list.push(user.id);
-    console.log("TCL: list with me in it\n", list);
 
     const group = new Conversation({
         groupName: name,
@@ -263,14 +241,12 @@ router.post("/createGroup", checkToken, (req, res) => {
     });
     Conversation.create(group)
         .then(newGroup => {
-            console.log("TCL: newGroup", newGroup);
             list.forEach(user => {
-                console.log("TCL: user", user);
                 io.to(user).emit("createGroup", newGroup);
             });
         })
-        .then(res.end())
         .catch(e => console.log("Error creating group...") || e);
+        res.end()
 });
 
 router.get("/getGroups", checkToken, (req, res) => {
