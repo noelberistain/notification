@@ -65,7 +65,8 @@ router.post("/addContact", (req, res) => {
                 }
             });
         }
-    });
+    })
+    .catch(e => console.log(e));
     return io.to(_id).emit("notification", userId);
 });
 
@@ -268,7 +269,8 @@ router.get("/getGroups", checkToken, (req, res) => {
         // })
 
         res.json(all);
-    });
+    })
+    .catch(e => console.log(e));
 });
 
 router.get("/test", (req,res)=>{
