@@ -275,7 +275,7 @@ router.get("/getGroups", checkToken, (req, res) => {
 
 router.get("/test", (req,res)=>{
     console.log("this is a test")
-    res.json(`test`)
+    res.send(`this is a test`)
 })
 
 module.exports = router;
