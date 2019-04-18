@@ -63,7 +63,8 @@ router.post("/addContact", (req, res) => {
                 else {
                     console.log("The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",doc);
                 }
-            });
+            })
+            .catch(e => console.log("error", e));
         }
     })
     .catch(e => console.log(e));
@@ -130,7 +131,8 @@ router.post("/responseFriendship", (req, res) => {
                                         );
                                     }
                                 }
-                            });
+                            })
+                            .catch(e => console.log(e));
                         } catch {
                             console.log("SOME ERROR");
                         }

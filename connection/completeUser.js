@@ -7,6 +7,7 @@ module.exports = (req, res, next) => {
         Contact.findOne({ _id: id }, restrictions)
             .then(user => {
                     withContacts = user
+                    console.log(withContacts)
                     next();
                 // WHERE withContacts = 'id' of active User with the array of 'contacts' id's
             })
