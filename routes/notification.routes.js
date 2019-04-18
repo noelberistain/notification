@@ -43,31 +43,38 @@ router.post("/addContact", (req, res) => {
         { _id: userId },
         { $push: { contacts: { contactID: _id } } },
         { new: true }
-    ).exec((err, doc) => {
-        if (err) {
-            // console.log(`there was something wrong updating the document${err}`);
-        } else {
-            // console.log(" me with false status And a id in my contacts array- - - - - - - - - - -\n",doc);
-            res.json(doc);
-            Contact.findOneAndUpdate(
-                { _id },
-                {
-                    $push: {
-                        contacts: { contactID: userId, status: "pending" }
-                    }
-                },
-                { new: true }
-            ).exec((err, doc) => {
-                if (err)
-                    console.log(`there was something wrong updating the document ${err}`);
-                else {
-                    console.log("The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",doc);
-                }
-            })
-            .catch(e => console.log("error", e));
-        }
-    })
-    .catch(e => console.log(e));
+    )
+        .exec((err, doc) => {
+            if (err) {
+                // console.log(`there was something wrong updating the document${err}`);
+            } else {
+                // console.log(" me with false status And a id in my contacts array- - - - - - - - - - -\n",doc);
+                res.json(doc);
+                Contact.findOneAndUpdate(
+                    { _id },
+                    {
+                        $push: {
+                            contacts: { contactID: userId, status: "pending" }
+                        }
+                    },
+                    { new: true }
+                )
+                    .exec((err, doc) => {
+                        if (err)
+                            console.log(
+                                `there was something wrong updating the document ${err}`
+                            );
+                        else {
+                            console.log(
+                                "The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",
+                                doc
+                            );
+                        }
+                    })
+                    .catch(e => console.log("error", e));
+            }
+        })
+        .catch(e => console.log(e));
     return io.to(_id).emit("notification", userId);
 });
 
@@ -102,42 +109,46 @@ router.post("/responseFriendship", (req, res) => {
                                 },
                                 { $set: { "contacts.$.status": value } },
                                 { new: true }
-                            ).exec(async (err, doc) => {
-                                if (err)
-                                    console.log("E R R O R  at ln-120", err);
-                                else {
-                                    try {
-                                        const { id } = user;
-                                        const them = [id, contactID];
-                                        const conv = new Conversation({
-                                            participants: them
-                                        });
-                                        Conversation.create(conv)
-                                            .then(newConv => {
-                                                return io
-                                                    .to(id)
-                                                    .to(contactID)
-                                                    .emit(
-                                                        "create_conversation",
-                                                        newConv
-                                                    );
-                                                // res.json(newConv._id)
-                                            })
-                                            .catch(e => console.log(e));
-                                    } catch {
+                            )
+                                .exec( (err, doc) => {
+                                    if (err)
                                         console.log(
-                                            "THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",
+                                            "E R R O R  at ln-120",
                                             err
                                         );
+                                    else {
+                                        try {
+                                            const { id } = user;
+                                            const them = [id, contactID];
+                                            const conv = new Conversation({
+                                                participants: them
+                                            });
+                                            Conversation.create(conv)
+                                                .then(newConv => {
+                                                    io.to(id)
+                                                        .to(contactID)
+                                                        .emit(
+                                                            "create_conversation",
+                                                            newConv
+                                                        );
+                                                    res.end()
+                                                })
+                                                .catch(e => console.log(e));
+                                        } catch {
+                                            console.log(
+                                                "THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",
+                                                err
+                                            );
+                                        }
                                     }
-                                }
-                            })
-                            .catch(e => console.log(e));
+                                })
+                                .catch(e => console.log(e));
                         } catch {
                             console.log("SOME ERROR");
                         }
                     }
-                });
+                })
+                .catch(e => console.log(e));
             } catch {}
             // io.to(id).to(contactID).emit('notification',newConv)
         }
@@ -185,7 +196,7 @@ router.get("/myfriends", checkToken, completeUser, async (req, res) => {
 router.post("/createMessage", checkToken, (req, res) => {
     const { id } = user;
     const { convID, content, contact } = req.body;
-	const message = new Message({
+    const message = new Message({
         conversationID: convID,
         author: id,
         content
@@ -193,10 +204,9 @@ router.post("/createMessage", checkToken, (req, res) => {
     message
         .save()
         .then(newMessage => {
-            contact.forEach(user=>{
-                io.to(user)
-                    .emit("newMessage", newMessage);
-            })
+            contact.forEach(user => {
+                io.to(user).emit("newMessage", newMessage);
+            });
             res.end();
         })
         .catch(e => {
@@ -215,7 +225,7 @@ router.get("/getMessages", checkToken, (req, res) => {
             console.log(`there was an error retrieving all messages for conversationId= ${id}
             ${e}`);
         });
-        res.end();
+    res.end();
 });
 
 router.get("/getGroupMessages", checkToken, (req, res) => {
@@ -231,7 +241,7 @@ router.get("/getGroupMessages", checkToken, (req, res) => {
             console.log(`there was an error retrieving all messages for conversationId= ${groupID}
             ${e}`);
         });
-        res.end();
+    res.end();
 });
 
 router.post("/createGroup", checkToken, (req, res) => {
@@ -249,35 +259,36 @@ router.post("/createGroup", checkToken, (req, res) => {
             });
         })
         .catch(e => console.log("Error creating group...") || e);
-        res.end()
+    res.end();
 });
 
 router.get("/getGroups", checkToken, (req, res) => {
     const { id } = user;
     Conversation.find({
         participants: id
-    }).then(all => {
-        // console.log("***********ALL CONVERSATIONS***********",all)
-
-        // const groups = all.filter(conversation => conversation.participants.length > 2);
-        // const theOnes = groups.filter(conv => conv.groupName)
-        // console.log("---------GROUPS WITH ME---------\n",theOnes)
-        // theOnes.forEach(group => {
-        //     group.participants.map(participant=>{
-        // 		// console.log("TCL: participant", participant, group)
-
-        //         io.to(participant).emit('loadGroups',group)
-        //     })
-        // })
-
-        res.json(all);
     })
-    .catch(e => console.log(e));
+        .then(all => {
+            // console.log("***********ALL CONVERSATIONS***********",all)
+
+            // const groups = all.filter(conversation => conversation.participants.length > 2);
+            // const theOnes = groups.filter(conv => conv.groupName)
+            // console.log("---------GROUPS WITH ME---------\n",theOnes)
+            // theOnes.forEach(group => {
+            //     group.participants.map(participant=>{
+            // 		// console.log("TCL: participant", participant, group)
+
+            //         io.to(participant).emit('loadGroups',group)
+            //     })
+            // })
+
+            res.json(all);
+        })
+        .catch(e => console.log(e));
 });
 
-router.get("/test", (req,res)=>{
-    console.log("this is a test")
-    res.send(`this is a test`)
-})
+router.get("/test", (req, res) => {
+    console.log("this is a test");
+    res.send(`this is a test`);
+});
 
 module.exports = router;
