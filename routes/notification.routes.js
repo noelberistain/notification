@@ -35,47 +35,68 @@ router.post("/adduser", (req, res) => {
         .catch(e => console.log(e));
 });
 
+// add Contact gets the USER-ID and the CONTACT-ID to go at notification db and add to both documents the respective id's
+// so now they can appear at the Browser rather as a friend at contact list or as a pending friend waiting for response
 router.post("/addContact", (req, res) => {
-    // console.log(" ------ Info from authentication at CLIENT - - - - /n", req.body);
+    console.log("\n'Info' from addFriend() at CLIENT/n", req.body);
     const { _id, userId } = req.body;
-
+    console.log(
+        "\n****It should contains:\n_id(invited contact) = ",
+        _id,
+        "\nuserId(active user) = ",
+        userId
+    );
+    
     Contact.findOneAndUpdate(
         { _id: userId },
         { $push: { contacts: { contactID: _id } } },
         { new: true }
     )
-        .exec((err, doc) => {
-            if (err) {
-                // console.log(`there was something wrong updating the document${err}`);
-            } else {
-                // console.log(" me with false status And a id in my contacts array- - - - - - - - - - -\n",doc);
-                res.json(doc);
+        .exec((err,doc) => {
+            if (err){
+                console.log(
+                    "ERROR SAVING invited contact into USERS contacts lists"
+                );
+                res.status(400).send({invitedAdded: false})
+            }
+            else {
+                console.log(
+                    "\nSAVED invited contact INTO user's contactlist with default status 'false'\n**",
+                    doc,
+                    "\n***NEXT - Add user into the contacts list of the invited contact"
+                );
+                res.status(200).json(doc);
+                // try {
                 Contact.findOneAndUpdate(
                     { _id },
                     {
                         $push: {
-                            contacts: { contactID: userId, status: "pending" }
+                            contacts: {
+                                contactID: userId,
+                                status: "pending"
+                            }
                         }
                     },
                     { new: true }
                 )
                     .exec((err, doc) => {
-                        if (err)
+                        if (err){
                             console.log(
-                                `there was something wrong updating the document ${err}`
+                                "ln 85 - unable to finish transaction, couldn't add USER into invited Contact (contacts lists)"
                             );
+                            res.status(400).send("ln 87 - couldn't add USER into invited Contact (contacts lists)")
+                        }
                         else {
                             console.log(
-                                "The invited Friend with a 'pending' status and my ID into his contacts array\n- - - - - - - - - -\n",
+                                "\nSAVED user's info INTO invited friend contacts list with status = 'pending'\n**",
                                 doc
                             );
+                            console.log("should send the event /'notification/' to id = ", _id)
+                            return io.to(_id).emit("notification", userId);
                         }
                     })
-                    .catch(e => console.log("error", e));
             }
         })
-        .catch(e => console.log(e));
-    return io.to(_id).emit("notification", userId);
 });
 
 router.post("/responseFriendship", (req, res) => {
@@ -87,9 +108,10 @@ router.post("/responseFriendship", (req, res) => {
         const { id } = user;
         // console.log("user ID ln-95:\n", id);
         const { value, contactID } = req.body;
+		console.log("TCL: value, contactID", value, contactID)
         // value means the status - - - requestingID means the id of the element clicked at the dom
         if (value !== "undefined" && value !== "false") {
-            try {
+            // try {
                 Contact.findOneAndUpdate(
                     {
                         _id: id, // id means the id decoded from token for the ACTIVE USER
@@ -97,59 +119,79 @@ router.post("/responseFriendship", (req, res) => {
                     },
                     { $set: { "contacts.$.status": value } },
                     { new: true }
-                ).exec((err, doc) => {
-                    if (err) {
-                        console.log("E R R O R  at ln-109", err);
-                    } else {
-                        try {
-                            Contact.findOneAndUpdate(
-                                {
-                                    _id: contactID,
-                                    "contacts.contactID": id
-                                },
-                                { $set: { "contacts.$.status": value } },
-                                { new: true }
-                            )
-                                .exec( (err, doc) => {
-                                    if (err)
-                                        console.log(
-                                            "E R R O R  at ln-120",
-                                            err
-                                        );
-                                    else {
-                                        try {
-                                            const { id } = user;
-                                            const them = [id, contactID];
-                                            const conv = new Conversation({
-                                                participants: them
-                                            });
-                                            Conversation.create(conv)
-                                                .then(newConv => {
-                                                    io.to(id)
-                                                        .to(contactID)
-                                                        .emit(
-                                                            "create_conversation",
-                                                            newConv
-                                                        );
-                                                    res.end()
-                                                })
-                                                .catch(e => console.log(e));
-                                        } catch {
+                )
+                    .exec((err, doc) => {
+                        if (err) {
+                            console.log("E R R O R  at ln-109", err);
+                            res.status(400).send("ln - 138  error changing the value")
+                            // res.end()
+                        } else {
+                            try {
+                                Contact.findOneAndUpdate(
+                                    {
+                                        _id: contactID,
+                                        "contacts.contactID": id
+                                    },
+                                    { $set: { "contacts.$.status": value } },
+                                    { new: true }
+                                )
+                                    .exec((err, doc) => {
+                                        if (err){
                                             console.log(
-                                                "THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",
+                                                "E R R O R  at ln-140 not able to change the value",
                                                 err
                                             );
+                                            res.status(400).send("not able to change the value")
+                                        }else {
+                                            try {
+                                                const { id } = user;
+                                                const them = [id, contactID];
+                                                const conv = new Conversation({
+                                                    participants: them
+                                                });
+                                                Conversation.create(conv)
+                                                    .then(newConv => {
+														console.log("TCL: newConv", newConv)
+                                                        io.to(id)
+                                                            .to(contactID)
+                                                            .emit(
+                                                                "create_conversation",
+                                                                newConv
+                                                            );
+                                                        res.end();
+                                                    })
+                                                    .catch(e => {
+                                                        console.log("error at ln 162. Wasn't able to fire event create_conversation\n* * * * *\n" ,e)
+                                                        res.end()
+                                                        // res.status(400).json("Wasn't able to fire evnet create_conversation, it might not created a new conversation")
+                                                    });
+                                            } catch (err) {
+                                                console.log(
+                                                    "ln 167 - -THERE WAS AN ERROR updating status at the Friend who request\n* * * * * ",
+                                                    err
+                                                );
+                                                res.status(400).json("THERE WAS AN ERROR updating status at the Friend who request")
+                                            }
                                         }
-                                    }
-                                })
-                                .catch(e => console.log(e));
-                        } catch {
-                            console.log("SOME ERROR");
+                                    })
+                                    // .catch(e => {
+                                    //     console.log(e);
+                                    //     res.status(400).json("couldn't change the value/ error catched at ln 176")
+                                    // });
+                            } catch {
+                                console.log("SOME ERROR");
+                                res.status(400).send("catched error at ln 180")
+                            }
                         }
-                    }
-                })
-                .catch(e => console.log(e));
-            } catch {}
+                    })
+                    // .catch(e => {
+                    //     console.log("ln 187 - error .. . . ", e)
+                    //     res.end()
+                    // });
+            // } catch (e) {
+                // console.log("error catched at ln-186")
+                // res.status(400).send({error: e})
+            // }
             // io.to(id).to(contactID).emit('notification',newConv)
         }
         if (value === "false") {
@@ -159,10 +201,9 @@ router.post("/responseFriendship", (req, res) => {
             } catch {
                 // if something goes wrong, should be doing something usefull
             }
-        } else {
-            // If header is undefined return Forbidden (403)
-            res.send("something is wrong").status(403);
-        }
+        } 
+    }else {
+        res.status(403).send("something is wrong with the headers");
     }
 });
 

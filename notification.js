@@ -28,8 +28,8 @@ mongoose.connect(config.DB, { useNewUrlParser: true }).then(
     }
 );
 
-// app.use(bodyParser.urlencoded({ extended: false })); ORIGINAL USAGE  extended:false
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: false })); //ORIGINAL USAGE  extended:false
+// app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.get("/", (req, res, next) => {
